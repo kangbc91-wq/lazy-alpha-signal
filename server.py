@@ -33,6 +33,7 @@ def is_market_open_time():
     m = now_kst.hour * 60 + now_kst.minute
     return (ALLOWED_START[0]*60+ALLOWED_START[1]) <= m <= (ALLOWED_END[0]*60+ALLOWED_END[1])
 
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Lazy Alpha Signal Filter")
@@ -53,6 +54,7 @@ async def send_telegram(message: str):
 
 
 BUY_KEYWORDS = ["buy", "매수", "진입", "돌파", "breakout", "rebreak", "pullback", "추매", "셋업"]
+
 
 def is_valid_buy_signal(data: dict) -> bool:
     exchange = str(data.get("exchange", "")).strip().upper()
@@ -84,31 +86,35 @@ def format_signal_message(data: dict) -> str:
     now = datetime.now().strftime("%m/%d %H:%M")
     grade_emoji = "🟣" if str(conviction).upper() == "S" else "🟢"
     sector_emoji = "⚡" if sector == "에너지" else "🔩"
-    msg = f"{grade_emoji} <b>{stock_name}</b> ({ticker})
-{sector_emoji} 섹터: {sector}
-━━━━━━━━━━━━━━
-📊 신호: <b>{signal}</b>
-"
-    if action: msg += f"📌 방향: {action}
-"
+    parts = [
+        f"{grade_emoji} <b>{stock_name}</b> ({ticker})",
+        f"{sector_emoji} 섹터: {sector}",
+        "━━━━━━━━━━━━━━",
+        f"📊 신호: <b>{signal}</b>",
+    ]
+    if action:
+        parts.append(f"📌 방향: {action}")
     if conviction:
-        msg += f"🎯 등급: <b>{conviction}</b>"
-        if score: msg += f" | 점수: {score}"
-        msg += "
-"
-    if price: msg += f"💰 현재가: {price}
-"
-    msg += f"🕐 {now}"
-    return msg
+        conv_line = f"🎯 등급: <b>{conviction}</b>"
+        if score:
+            conv_line += f" | 점수: {score}"
+        parts.append(conv_line)
+    if price:
+        parts.append(f"💰 현재가: {price}")
+    parts.append(f"🕐 {now}")
+    return "\n".join(parts)
 
 
 def format_debug_message(data: dict, raw_text: str) -> str:
     now = datetime.now().strftime("%m/%d %H:%M:%S")
     ticker = data.get("ticker", "?") if isinstance(data, dict) else "?"
-    return f"🔍 <b>[DEBUG] 웹훅 수신</b>
-🕐 {now} | ticker: {ticker}
-━━━━━━━━━━━━━━
-<code>{raw_text[:800]}</code>"
+    lines = [
+        "🔍 <b>[DEBUG] 웹훅 수신</b>",
+        f"🕐 {now} | ticker: {ticker}",
+        "━━━━━━━━━━━━━━",
+        f"<code>{raw_text[:800]}</code>",
+    ]
+    return "\n".join(lines)
 
 
 @app.post("/webhook")
